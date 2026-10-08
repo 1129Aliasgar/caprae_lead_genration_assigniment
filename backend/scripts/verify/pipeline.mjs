@@ -15,8 +15,12 @@
  * throwaway database — never production.
  *
  * Usage:
- *   npm run verify:pipeline                 # expects MONGO_URI to already have data
- *   SKIP_EXTRACTION=1 npm run verify:pipeline   # inject a profile without calling the LLM
+ *   npm run dev                      # in one terminal
+ *   npm run verify:pipeline          # in another
+ *
+ *   SKIP_EXTRACTION=1 npm run verify:pipeline
+ *     Injects a profile directly into Mongo instead of extracting one. Only
+ *     useful when no server is running.
  */
 
 import { readFile } from "node:fs/promises";
@@ -108,13 +112,12 @@ if (!token) process.exit(1);
 
 let profile;
 
+/*
+ * Escape hatch for when no server is running and only the ranking needs
+ * checking. Not used by CI: extraction is deterministic and in-process, so it
+ * costs nothing to run for real, and running it is the point.
+ */
 if (SKIP_EXTRACTION) {
-  /*
-   * Written straight to the database rather than through the API: the point of
-   * this run is the ranking, and going through extraction would spend a
-   * rate-limited provider call to produce an input the ranking does not care
-   * about.
-   */
   const { default: mongoose } = await import("mongoose");
 
   await mongoose.connect(process.env.MONGO_URI);
