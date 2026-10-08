@@ -1,0 +1,37 @@
+# Netlify redirect rules for the LeadMatch frontend.
+#
+# Netlify serves these verbatim, with no build step. Keeping the API on its own
+# origin (`localhost:5000` locally, the Render URL in production) is deliberate:
+# it keeps the API's CORS policy meaningful instead of proxying through the same
+# origin and making CORS untestable.
+#
+# The rewrites below only cover the SPA fallback. API calls are NOT proxied —
+# they go straight to NEXT_PUBLIC_API_URL, because a proxy would hide the
+# cross-origin request and stop the CORS configuration from ever being
+# exercised in production.
+
+# Never rewrite requests for real files (assets, images, icons). Without this
+# the fallback below would return index.html for a missing JS bundle, which
+# surfaces as a blank page and a MIME-type error rather than a 404.
+/*
+  !/api/*    /index.html   200
+  /*          /index.html   200
+*/
+
+/*
+ * Security headers.
+ *
+ * The backend sets an httpOnly auth cookie, so `X-Frame-Options` and
+ * `Referrer-Policy` matter more than usual here. `connect-src` must include the
+ * API origin — the default would otherwise block every fetch to it.
+ *
+ * Note: `Content-Security-Policy` is intentionally not set. A strict policy
+ * needs a nonce threaded through Next's rendering, which a static redirect file
+ * cannot provide; a half-configured CSP is worse than none.
+ */
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+*/

@@ -1,0 +1,193 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Every colour in the app resolves through one of these variables. Components
+ * use semantic tokens (`bg-primary`, `text-tier-a`); a literal
+ * `bg-blue-500` anywhere is a bug, and changing the brand is a one-line edit
+ * here rather than a sweep through the tree.
+ */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
+
+  /*
+   * Rank and score semantics. These are not Tailwind palette colours — they
+   * are the app's own vocabulary, exposed as tokens so a component asking for
+   * "a good match" never has to know what colour that is.
+   *
+   * `tier-a` and `score-high` are deliberately the same value: a green score
+   * bar and a green A badge should be recognisably the same signal.
+   */
+  --tier-a: oklch(0.70 0.15 152);
+  --tier-b: oklch(0.75 0.15 80);
+  --tier-c: oklch(0.68 0.02 260);
+  --score-high: oklch(0.62 0.17 152);
+  --score-mid: oklch(0.75 0.15 80);
+  --score-low: oklch(0.55 0.02 260);
+
+  /*
+   * Foreground ON a filled chip.
+   *
+   * Near-black in both themes, because it is a property of the *fill* rather
+   * than of the theme — all three fills are mid-to-light, and none of them can
+   * carry white text above 4.5:1 at any pleasant lightness (measured: the
+   * green caps out at L≈0.41, amber at L≈0.35). The fills above are picked to
+   * be light enough to carry this instead.
+   *
+   * Reaching for `--foreground` here would be the trap: it is near-white in
+   * light mode and near-black in dark, which is right for text on the page and
+   * wrong for text on a filled chip, in both themes at once.
+   */
+  --tier-a-fg: oklch(0.205 0 0);
+  --tier-b-fg: oklch(0.205 0 0);
+  --tier-c-fg: oklch(0.205 0 0);
+
+  /*
+   * Text colour for a score sitting on the page background — the "63%" in the
+   * match column, a confidence icon.
+   *
+   * These exist separately from `--tier-*-fg` because the requirement is the
+   * opposite: a chip foreground must contrast with a *saturated fill*, while
+   * this must contrast with the *background*. Reusing one token for both is what
+   * put near-black text on a near-black background in dark mode — a measured
+   * 1.00:1. `low` is not needed here; low scores use `--muted-foreground`.
+   */
+  --score-high-text: oklch(0.30 0.13 152);
+  --score-mid-text: oklch(0.30 0.11 70);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.556 0 0);
+
+  --tier-a: oklch(0.72 0.17 152);
+  --tier-b: oklch(0.82 0.14 80);
+  --tier-c: oklch(0.70 0.02 260);
+  --score-high: oklch(0.72 0.17 152);
+  --score-mid: oklch(0.82 0.14 80);
+  --score-low: oklch(0.65 0.02 260);
+
+  /*
+   * Still near-black. The dark-mode fills are lighter than the light-mode ones,
+   * not darker — they have to be, because a filled chip needs to read as a chip
+   * against a dark page — so the same near-black foreground works in both
+   * themes and the tokens above do not need a different value per theme.
+   */
+  --tier-a-fg: oklch(0.145 0 0);
+  --tier-b-fg: oklch(0.145 0 0);
+  --tier-c-fg: oklch(0.145 0 0);
+
+  --score-high-text: oklch(0.76 0.15 152);
+  --score-mid-text: oklch(0.76 0.13 80);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-tier-a: var(--tier-a);
+  --color-tier-b: var(--tier-b);
+  --color-tier-c: var(--tier-c);
+  --color-tier-a-fg: var(--tier-a-fg);
+  --color-tier-b-fg: var(--tier-b-fg);
+  --color-tier-c-fg: var(--tier-c-fg);
+  --color-score-high: var(--score-high);
+  --color-score-mid: var(--score-mid);
+  --color-score-low: var(--score-low);
+
+  /*
+   * Mapped separately from the fills so `text-score-high-text` and
+   * `bg-score-high` cannot drift into meaning the same thing. Tailwind derives
+   * these from the token names, so both exist as long as both are declared.
+   */
+  --color-score-high-text: var(--score-high-text);
+  --color-score-mid-text: var(--score-mid-text);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}
+
+/*
+ * A thin scrollbar for the horizontally scrolling tier carousel. Without it the
+ * clipped badges at the edge read as a rendering bug rather than as "there is
+ * more to scroll".
+ */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+  }
+}

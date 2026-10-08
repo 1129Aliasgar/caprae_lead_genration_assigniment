@@ -1,0 +1,28 @@
+# netlify.toml — build configuration for the Next.js frontend.
+#
+# Netlify reads this instead of guessing. The deploy is source-based: Netlify
+# installs, builds, and serves, so the Dockerfile is not involved on this path.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# Node 22 — required by the Next 16 toolchain and by the ESLint 9 config.
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Set these in the Netlify UI (Site settings → Environment variables), not here.
+#
+# NEXT_PUBLIC_API_URL is inlined into the client bundle at build time, so it
+# must be set before the build runs — changing it in the UI afterwards requires
+# a redeploy. Point it at your Render API, e.g.
+#   https://leadmatch-api.onrender.com
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Server Components read the auth cookie server-side, so this app needs SSR
+# rather than static export. Netlify's Next.js plugin handles the runtime.
+[functions]
+  included_files = []
