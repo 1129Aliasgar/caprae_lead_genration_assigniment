@@ -6,6 +6,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
+    "rootDir": "./backend/src",
     "strict": true,
     "skipLibCheck": true,
     "outDir": "./dist",
