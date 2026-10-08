@@ -9,6 +9,7 @@ It ranks 33,000 real LinkedIn job postings against your profile using six scorin
 | **Backend** | Node.js, Express, TypeScript, MongoDB, Inversify, Joi — `backend/` |
 | **Frontend** | Next.js 16, React 19, Tailwind v4, shadcn/ui — `frontend/` |
 | **Data** | [xanderios/linkedin-job-postings](https://huggingface.co/datasets/xanderios/linkedin-job-postings) |
+| **LiveDemo** | [LiveDemo](https://lead-match.netlify.app/) |
 
 Repo: `https://github.com/1129Aliasgar/caprae_lead_genration_assigniment`
 
