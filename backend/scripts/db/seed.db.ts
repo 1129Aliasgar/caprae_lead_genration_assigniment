@@ -6,6 +6,8 @@
  *   npm run seed                     # full dataset (~33k rows)
  *   npm run seed -- --limit=500      # demo slice, for a laptop
  *   npm run seed -- --offset=1000    # resume a partial run
+ *   npm run seed -- --limit=1500 --match=engineer,developer
+ *                                      # test seed: only engineering roles
  *
  * The run is idempotent. Every row is written with
  * `updateOne({ jobId }, { $set: doc }, { upsert: true })` in batches, so
@@ -79,6 +81,19 @@ interface SeedJobLead {
 interface SeedOptions {
   limit: number;
   offset: number;
+  /**
+   * Keep only rows whose title contains one of these terms.
+   *
+   * Optional, and unset for normal seeding. It exists for test seeds: a plain
+   * `--limit=200` takes the first 200 rows of the dataset, which happen to
+   * contain no engineering roles at all, so a ranking check against them returns
+   * nothing and fails for a reason unrelated to the ranking.
+   *
+   * `limit` counts rows *read from the source*, not rows written — so filtering
+   * still costs the same number of API calls as an unfiltered run of the same
+   * limit, which is what makes this slow but predictable rather than unbounded.
+   */
+  match: string[] | null;
 }
 
 /**
@@ -306,7 +321,23 @@ async function fetchPage(offset: number): Promise<HfRowsResponse> {
 }
 
 /**
- * Parse `--limit=N` / `--offset=N`.
+ * Title terms for `--match`.
+ *
+ * A seeded slice is a *prefix* of the dataset, and the prefix is not
+ * representative. The first 200 rows are area supervisors, daycare teachers and
+ * retail associates; the first 200 also contain no software or DevOps postings at
+ * all, so a ranking test seeded with `--limit=200` returns zero leads and fails
+ * for a reason that has nothing to do with the code.
+ *
+ * Filtering on these terms makes a test seed contain the roles the fixture
+ * profile is actually looking for, so the check passes or fails for the reason it
+ * exists to test. Deliberately broad — `engineer` alone reaches 102 leads in the
+ * full dataset, which is enough to rank against.
+ */
+export const MATCH_TERMS = ["engineer", "developer"];
+
+/**
+ * Parse `--limit=N` / `--offset=N` / `--match`.
  *
  * Both default to "the whole dataset". A non-numeric or negative flag is a
  * hard error rather than a silent fallback to unlimited — a typo'd `--limit`
@@ -316,28 +347,43 @@ async function fetchPage(offset: number): Promise<HfRowsResponse> {
 function parseArgs(argv: string[]): SeedOptions {
   let limit = MAX_SEED_LIMIT;
   let offset = 0;
+  let match: string[] | null = null;
 
   for (const arg of argv) {
-    const match = /^--(limit|offset)=(\d+)$/.exec(arg);
+    if (arg.startsWith("--match=")) {
+      const terms = arg
+        .slice("--match=".length)
+        .split(",")
+        .map((term) => term.trim().toLowerCase())
+        .filter(Boolean);
 
-    if (!match) {
+      if (terms.length > 0) {
+        match = terms;
+      }
+
       continue;
     }
 
-    const value = Number.parseInt(match[2], 10);
+    const numeric = /^--(limit|offset)=(\d+)$/.exec(arg);
 
-    if (!Number.isFinite(value) || value < 0) {
-      throw new Error(`Invalid value for ${match[1]}: ${match[2]}`);
+    if (!numeric) {
+      continue;
     }
 
-    if (match[1] === "limit") {
+    const value = Number.parseInt(numeric[2], 10);
+
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`Invalid value for ${numeric[1]}: ${numeric[2]}`);
+    }
+
+    if (numeric[1] === "limit") {
       limit = Math.min(value, MAX_SEED_LIMIT);
     } else {
       offset = value;
     }
   }
 
-  return { limit, offset };
+  return { limit, offset, match };
 }
 
 /** Batch upserts. One `bulkWrite` per `HF_SEED_BATCH_SIZE` documents. */
@@ -357,7 +403,8 @@ async function upsertBatch(batch: SeedJobLead[]): Promise<void> {
 async function seedLeads(options: SeedOptions): Promise<void> {
   console.log(
     `Seeding job leads from ${HF_DATASET_NAME} ` +
-      `(offset=${options.offset}, limit=${options.limit})`,
+      `(offset=${options.offset}, limit=${options.limit}` +
+      `${options.match ? `, match=${options.match.join("|")}` : ""})`,
   );
 
   let processed = 0;
@@ -431,15 +478,32 @@ async function seedLeads(options: SeedOptions): Promise<void> {
         break;
       }
 
+      processed++;
+
       const doc = mapRow(entry.row);
 
       if (doc === null) {
         skipped++;
-      } else {
-        batch.push(doc);
+        continue;
       }
 
-      processed++;
+      /*
+       * Title filter, applied after mapping so it reads the same `title` the
+       * recommender will match against.
+       *
+       * `processed` still advances for every row, so `--limit` stays a bound on
+       * rows *read* — otherwise a selective filter would page the entire
+       * dataset looking for matches, which turns a test seed into a full seed.
+       */
+      if (
+        options.match &&
+        !options.match.some((term) => doc.title.toLowerCase().includes(term))
+      ) {
+        skipped++;
+        continue;
+      }
+
+      batch.push(doc);
 
       if (batch.length >= HF_SEED_BATCH_SIZE) {
         await flush();

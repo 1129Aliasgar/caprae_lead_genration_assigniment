@@ -93,13 +93,25 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Seed a small lead set
+      - name: Seed a lead set containing engineering roles
         working-directory: backend
         env:
           MONGO_URI: mongodb://localhost:27017/leadmatch_test
           JWT_SECRET: ci-only-not-a-real-secret
           LOG_LEVEL: error
-        run: npm run seed:leads -- --limit=200
+        # `--match` is what makes this a usable test seed.
+        #
+        # A plain `--limit=200` reads the *first* 200 rows of the dataset, which
+        # are area supervisors, daycare teachers and retail associates. None of
+        # them are software or DevOps roles, so the ranking check seeded that way
+        # returned zero leads and failed for a reason that had nothing to do with
+        # the ranking.
+        #
+        # 1500 rows read yields ~104 engineering leads, of which enough clear a
+        # 100k salary floor to rank against. Costs ~31s of Hugging Face paging at
+        # the default 900ms interval — most of this job is the seed waiting, not
+        # the checks.
+        run: npm run seed:leads -- --limit=1500 --match=engineer,developer
 
       - name: Start the API
         working-directory: backend
