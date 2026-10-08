@@ -47,6 +47,14 @@ export const APP_ROUTES = {
 export const TOKEN_STORAGE_KEY = "leadmatch.token";
 
 /**
+ * Cookie the Next.js proxy and Server Components read for the session.
+ *
+ * Must be named `token`, because that is what `proxy.js` looks for and what the
+ * backend sets. See `storeToken` for why the frontend writes it too.
+ */
+export const TOKEN_COOKIE_NAME = "token";
+
+/**
  * The six scoring dimensions, in the order they appear in the backend's
  * `scoreBreakdown`.
  */

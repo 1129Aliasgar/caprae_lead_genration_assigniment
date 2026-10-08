@@ -18,7 +18,7 @@
  */
 
 import axios from "axios";
-import { API_ROUTES, TOKEN_STORAGE_KEY } from "./constants";
+import { API_ROUTES, TOKEN_COOKIE_NAME, TOKEN_STORAGE_KEY } from "./constants";
 
 /**
  * Read the JWT.
@@ -33,26 +33,62 @@ export function getStoredToken() {
   return window.localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
-/** Persist the JWT for the axios interceptor. */
+/**
+ * Persist the JWT so client-side requests can authenticate.
+ *
+ * Two copies, deliberately, because neither alone survives production:
+ *
+ * 1. **localStorage** (`leadmatch.token`) — read by the axios request
+ *    interceptor in the browser, which can attach `Authorization: Bearer`.
+ *
+ * 2. **A cookie named `token`** — read by `proxy.js` and by Server Components.
+ *    This is the copy that matters in production. The backend sets an httpOnly
+ *    cookie, but on *its own domain*; `your-app.netlify.app` and
+ *    `your-api.onrender.com` are different origins, so Netlify's edge never sees
+ *    it and every `/leads` request redirects back to `/login` — which looks
+ *    exactly like login failing, right after it succeeded.
+ *
+ *    A cookie set by Render cannot be made visible to Netlify. Writing our own
+ *    non-httpOnly copy on our own domain is the only thing that works.
+ *
+ * Security note: this cookie is deliberately *not* httpOnly, so an XSS payload
+ * could read it — but the localStorage copy above is equally readable by the
+ * same payload, so this adds no exposure that does not already exist. It is not
+ * a substitute for the backend's httpOnly cookie, which remains the one that
+ * matters for protecting the API from other origins.
+ */
 export function storeToken(token) {
   if (typeof window === "undefined") return;
 
   window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+
+  /*
+   * `max-age` is 1 day to match the JWT's own expiry, so the cookie cannot
+   * outlive the token it mirrors and leave the proxy accepting a session the
+   * backend will reject.
+   *
+   * `SameSite=Lax` sends it on top-level navigation (which is what the proxy
+   * needs) while still withholding it from cross-site subrequests. `Secure` is
+   * omitted so this also works on http://localhost in development.
+   */
+  document.cookie = `${TOKEN_COOKIE_NAME}=${token}; path=/; max-age=86400; samesite=lax`;
 }
 
 /**
- * Forget the JWT.
+ * Forget the JWT, in every place it was written.
  *
- * Also clears the cookie the backend set, so a stale cookie cannot authenticate
- * a later request after the user has logged out. `max-age=0` expires it
- * immediately; the path and domain must match the cookie the backend wrote or
- * the browser keeps the original.
+ * Both copies have to go. Leaving the `token` cookie behind is the worse of the
+ * two: `proxy.js` would keep letting `/leads` through, the page would render,
+ * and every server-side fetch would then 401 — leaving the user on a broken
+ * leads page rather than a clean redirect to login.
  */
 export function clearToken() {
   if (typeof window === "undefined") return;
 
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-  document.cookie = `${TOKEN_STORAGE_KEY}=; path=/; max-age=0; samesite=lax`;
+
+  /* `max-age=0` expires immediately; path must match how it was written. */
+  document.cookie = `${TOKEN_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
 }
 
 const api = axios.create({

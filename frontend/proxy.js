@@ -7,12 +7,18 @@
  * What this does: bounces an unauthenticated visitor away from `/leads` and
  * `/profile` before any of that UI is sent to the browser.
  *
- * What it is *not*: the access control. It reads the httpOnly `token` cookie
- * and checks only that something is present — a JWT is not verified here,
- * because verifying it requires a secret this edge runtime should not have.
- * A forged cookie gets past this layer and is then rejected by the backend on
- * every real request, which is the authoritative check. `ProtectedRoute` adds
- * a client-side layer over the top for navigation feel.
+ * What it is *not*: the access control. It reads the `token` cookie and checks
+ * only that something is present — a JWT is not verified here, because verifying
+ * it requires a secret this edge runtime should not have. A forged cookie gets
+ * past this layer and is then rejected by the backend on every real request,
+ * which is the authoritative check.
+ *
+ * Cross-domain note, because this is what breaks in production: the API is
+ * hosted separately from this app, so the httpOnly cookie it sets is never sent
+ * here — it belongs to the API's domain. `storeToken` in `lib/api.js` writes an
+ * equivalent `token` cookie on *this* origin after login, which is the only way
+ * this layer can know a session exists. Without it every protected route
+ * redirects to `/login` even after a successful sign-in.
  */
 
 import { NextResponse } from "next/server";
@@ -41,6 +47,7 @@ export function proxy(request) {
   const url = request.nextUrl.clone();
 
   url.pathname = APP_ROUTES.login;
+
   /*
    * Carrying the original destination through so login can return the user to
    * where they were headed. `url.search` rather than `searchParams.set`, which
