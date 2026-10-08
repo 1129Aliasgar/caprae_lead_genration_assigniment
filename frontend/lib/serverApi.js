@@ -1,5 +1,7 @@
 import "server-only";
 
+import { apiBaseUrl } from "./apiUrl";
+
 /**
  * Server-side API access.
  *
@@ -30,16 +32,19 @@ export function authHeaders(token) {
 }
 
 /**
- * Fetch with a bearer token, resolving to `null` on any failure.
+ * Fetch with a bearer token, returning a shaped failure instead of throwing.
  *
- * `next: { revalidate: 0 }` because a ranking is user- and moment-specific:
- * caching it server-side would show one user another's leads.
+ * Never throws for a non-2xx: a Server Component that throws renders the error
+ * boundary, which for a routine "not signed in yet" is far heavier than the
+ * situation warrants — those are states the UI renders, not crashes.
  */
 async function fetchJson(path, options = {}) {
   const { token, ...init } = options;
 
+  const url = `${apiBaseUrl()}${path}`;
+
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
+    const response = await fetch(url, {
       ...init,
       headers: {
         "Content-Type": "application/json",

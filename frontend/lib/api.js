@@ -18,6 +18,7 @@
  */
 
 import axios from "axios";
+import { apiBaseUrl } from "./apiUrl";
 import { API_ROUTES, TOKEN_COOKIE_NAME, TOKEN_STORAGE_KEY } from "./constants";
 
 /**
@@ -92,7 +93,15 @@ export function clearToken() {
 }
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  /*
+   * Trimmed for the same reason `apiBaseUrl()` does it in serverApi.js.
+   *
+   * Axios already normalises `baseURL`, so a trailing slash here was harmless —
+   * but leaving the two modules reading the raw env var is exactly how the two
+   * drifted apart in the first place, one working and one not. Same helper,
+   * same value, one behaviour.
+   */
+  baseURL: apiBaseUrl(),
   headers: { "Content-Type": "application/json" },
   /*
    * The backend sets an httpOnly cookie on login and honours it as an auth
